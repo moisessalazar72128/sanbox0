@@ -1,0 +1,32 @@
+# Run behind Xfinity. No published ports, no inbound connections.
+name: plc-access-edge
+x-app: &app
+  build: .
+  user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp]
+  logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+services:
+  gateway:
+    <<: *app
+    command: [python, -m, plc_access.gateway]
+    environment:
+      RELAY_URL: "${RELAY_URL:?Set RELAY_URL to https://your-relay-domain}"
+      GATEWAY_TOKEN_FILE: /run/secrets/gateway_token
+      PLC_HOST: "${PLC_HOST:-simulator}"
+      PLC_PORT: "${PLC_PORT:-5020}"
+      PLC_DEVICE_ID: "${PLC_DEVICE_ID:-1}"
+      GATEWAY_READ_ONLY: "${GATEWAY_READ_ONLY:-true}"
+    volumes:
+      - ./secrets/gateway_token:/run/secrets/gateway_token:ro
+    networks: [outbound, plc]
+  simulator:
+    <<: *app
+    command: [python, -m, plc_access.simulator]
+    networks: [plc]
+networks:
+  outbound: {}
+  plc: {internal: true}

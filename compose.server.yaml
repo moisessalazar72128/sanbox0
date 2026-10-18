@@ -1,0 +1,39 @@
+# Run on a separate internet-reachable Linux host, never on the PLC network.
+name: plc-access-server
+services:
+  relay:
+    build: .
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    environment:
+      USERS_FILE: /run/secrets/users.json
+      GATEWAY_TOKEN_FILE: /run/secrets/gateway_token
+      RELAY_ALLOW_WRITES: "${RELAY_ALLOW_WRITES:-false}"
+    volumes:
+      - ./secrets/users.json:/run/secrets/users.json:ro
+      - ./secrets/gateway_token:/run/secrets/gateway_token:ro
+    networks: [backend]
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+  proxy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN}"
+      ACME_EMAIL: "${ACME_EMAIL:?Set ACME_EMAIL}"
+    volumes:
+      - ./deploy/Caddyfile.public:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [backend, internet]
+    depends_on: [relay]
+networks:
+  backend: {internal: true}
+  internet: {}
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,11 @@
+{
+    admin off
+    auto_https disable_redirects
+}
+https://localhost, https://proxy {
+    tls internal
+    request_body {
+        max_size 8KB
+    }
+    reverse_proxy relay:8000
+}
