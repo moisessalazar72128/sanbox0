@@ -1,0 +1,8 @@
+.env
+secrets/
+*.crt
+*.key
+__pycache__/
+.pytest_cache/
+.venv/
+*.zip
